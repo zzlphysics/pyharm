@@ -53,6 +53,8 @@ matplotlib.use('Agg')
 import pyharm
 from pyharm.plots.frame import frame
 from pyharm.parallel import calc_nthreads
+from pyharm import load_results
+import random
 
 # Use mpi4py if available, or multiprocessing
 try:
@@ -222,7 +224,7 @@ def movie(movie_types, paths, **kwargs):
                     fname = glob.glob("eht_out.h5")[0]
                 if fname is not None:
                     if do_out(): print("Loading diag file {}".format(fname), file=sys.stderr)
-                    diag = pyharm.io.read_log(fname)
+                    diag = load_results(fname)
                 else:
                     diag = None
             except (IOError, pandas.errors.ParserError):
@@ -287,10 +289,37 @@ def movie(movie_types, paths, **kwargs):
             if use_mpi and not kwargs['nompi']:
                 print("Using MPI")
                 # Everything is set by MPI.  We inherit a situation and use it
-                with MPICommExecutor() as executor:
-                    if executor is not None:
-                        print("Imaging {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
-                        executor.map(frame, files, (diag,)*len(files), (kwargs,)*len(files))
+                # with MPICommExecutor() as executor:
+                #     if executor is not None:
+                #         print("Imaging {} files across pool size {}".format(len(files), MPI.COMM_WORLD.Get_size()), file=sys.stderr)
+                #         executor.map(frame, files, (diag,)*len(files), (kwargs,)*len(files))
+                comm = MPI.COMM_WORLD
+                size = comm.Get_size()  # Total number of MPI processes
+                rank = comm.Get_rank()  # Rank of the current MPI process
+
+                #  # Shuffle the files to randomize the distribution
+                # random.shuffle(files)  # Randomizes the order of files
+
+                # # Divide files among ranks
+                # # Use numpy.array_split to ensure the division is as even as possible
+                # files_per_rank = np.array_split(files, size)
+                # local_files = files_per_rank[rank]  # Each rank gets its subset of files
+
+                # Distribute files in a round-robin fashion (It's more efficient in the case of --resume)
+                local_files = [files[i] for i in range(rank, len(files), size)]
+
+                # Each rank processes its local files
+                if len(local_files) > 0:
+                    print(f"Rank {rank} is processing {len(local_files)} files.", file=sys.stderr, flush=True)
+                    for fname in local_files:
+                        print(f"Rank {rank} is processing file {fname}", file=sys.stderr, flush=True)
+                        frame(fname, diag, kwargs)
+                else:
+                    print(f"Rank {rank} has no files to process.", file=sys.stderr, flush=True)
+
+                # Ensure all processes are synchronized before proceeding
+                comm.Barrier()
+                print("MPI Finish")
             else:
                 print("Using {} processes".format(nthreads))
                 with multiprocessing.Pool(nthreads) as pool:
