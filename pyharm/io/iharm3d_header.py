@@ -59,6 +59,7 @@ header_keys_electrons = ['cour', 'gam', 'tf', 'fel0', 'gam_e', 'gam_p', 'tptemax
 geom_keys = ['dx1', 'dx2', 'dx3', 'startx1', 'startx2', 'startx3', 'n_dim']
 # Keys in potential geom/mks
 mks_keys = ['r_eh', 'r_in', 'r_out', 'a', 'hslope']
+mkz_keys = ['r_eh', 'r_in', 'r_out', 'a', 'kzeta', 'hslope']
 mmks_keys = ['poly_alpha', 'poly_xt']
 fmks_keys = ['mks_smooth', 'poly_alpha', 'poly_xt']
 
@@ -94,6 +95,8 @@ def write_hdr(params, outf):
         pass
     elif params['coordinates'] == "mks":
         _write_param_grp(params, mks_keys, 'mks', outf['header/geom'])
+    elif params['coordinates'] == "mkz":
+        _write_param_grp(params, mkz_keys, 'mkz', outf['header/geom'])
     elif params['coordinates'] == "fmks":
         _write_param_grp(params, mks_keys+fmks_keys, 'fmks', outf['header/geom'])
         # FOR NOW: Duplicate into "mmks" header because codes expect things there

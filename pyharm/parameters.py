@@ -135,8 +135,10 @@ def parse_parthenon_dat(string):
         params['coordinates'] = "cartesian"
     elif "fmks" in params['transform'] or "funky" in params['transform']:
         params['coordinates'] = "fmks"
-    elif "mks" in params['transform'] or "modif" in params['transform']:
+    elif ("mks" in params['transform'] or "modif" in params['transform']) and "ks" in params['base']:
         params['coordinates'] = "mks"
+    elif ("mks" in params['transform'] or "modif" in params['transform']) and "kz" in params['base']:
+        params['coordinates'] = "mkz"
     elif "eks" in params['transform'] or "exponent" in params['transform']:
         params['coordinates'] = "eks"
     elif "null" in params['transform'] and "ks" in params['base']:
@@ -148,7 +150,7 @@ def parse_parthenon_dat(string):
     else:
         print("Defaulting KHARMA coordinate system to fmks...")
         params['coordinates'] = params['metric'] = "fmks"
-
+    # print(params.keys())
     return fix(params)
 
 
@@ -209,7 +211,10 @@ def fix(params):
 
     # Also add eh radius
     if params['coordinates'] != "cartesian" and 'r_eh' not in params and 'a' in params:
-        params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
+        if 'rhor' in params:
+            params['r_eh'] = params['rhor']
+        else:
+            params['r_eh'] = (1. + np.sqrt(1. - params['a'] ** 2))
 
     # Metric defaults we're pretty safe in setting
     # TODO add these to coordinates.py
