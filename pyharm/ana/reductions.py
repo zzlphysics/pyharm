@@ -211,7 +211,7 @@ def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=Non
     if i_slice is not None:
         i_slice = slice(i_slice[0], i_slice[1])
     elif r_slice is not None:
-        i_slice = get_i_slice(r_slice[0], r_slice[1])
+        i_slice = get_i_slice(dump,r_slice[0], r_slice[1])
     else:
         i_slice = slice(None)
 
