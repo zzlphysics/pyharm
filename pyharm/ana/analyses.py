@@ -164,7 +164,7 @@ def omega_bz(dump, out, **kwargs):
     if _get(kwargs, 'do_tavgs'):
         out['hth/omega'] = out['htht/omega']
 
-def rth_profiles(dump, out, vars=('betainv', 'rho', 'sigma', 'Theta'), **kwargs):
+def rth_profiles(dump, out, vars=('inv_beta', 'rho', 'sigma', 'Theta'), **kwargs):
     """2D profiles in r/th, time-averaged.  Default betainv, rho, sigma, Theta
     """
     for var in vars:
