@@ -383,3 +383,12 @@ def omega_bz_advanced(dump, out, **kwargs):
         out['rhth/omega_alt'] *= -alpha_over_omega
 
     del Fcov01, Fcov13, vr, vth, vphi
+
+def factorQ(dump, out, **kwargs):
+    """Factor Q, used to gauge the accuracy of the numerical scheme
+    """
+    jmin, jmax = get_j_bounds(dump)
+    rout = np.min([dump['r'][-1,0,0], dump['r_out']])
+    out['t/factorQ_r'] = sphere_avg(dump, 'factorQ_r', r_slice=(dump['r_eh'], rout), j_slice=(jmin, jmax))
+    out['t/factorQ_th'] = sphere_avg(dump, 'factorQ_th', r_slice=(dump['r_eh'], rout), j_slice=(jmin, jmax))
+    out['t/factorQ_phi'] = sphere_avg(dump, 'factorQ_phi', r_slice=(dump['r_eh'], rout), j_slice=(jmin, jmax))
