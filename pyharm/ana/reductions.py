@@ -201,6 +201,54 @@ def shell_avg(dump, var, **kwargs):
     """
     return shell_sum(dump, var, **kwargs) / shell_sum(dump, '1', **kwargs)
 
+def shell_avg_weighted(dump, var, weight, at_r=None, at_i=None, th_slice=None, j_slice=None, mask=None):
+    """Average a variable over spherical shells, weighted by another variable. Returns a radial profile (array length N1) or single-shell average.
+    :param var: variable to average
+    :param weight: variable to weight by
+    :param at_r: Single radius at which to average (nearest-neighbor smaller zone is used)
+    :param at_zone: Specific radial zone at which to average, for compatibility
+    :param th_slice: Tuple of minimum and maximum theta value to average
+    :param j_slice: Tuple of x2 indices instead of specifying theta. Overrides th_slice
+    :param mask: array of 1/0 of the post-slice size of 'var', which is multiplied with the result
+    """
+
+    # Translate coordinates to zone numbers.
+    if at_i is not None:
+        i_slice = slice(at_i, at_i+1)
+    elif at_r is not None:
+        at_i = i_of(dump['r1d'], at_r)
+        i_slice = slice(at_i, at_i+1)
+    else:
+        i_slice = slice(None)
+
+    if j_slice is not None:
+        j_slice = slice(j_slice[0], j_slice[1])
+    elif th_slice is not None:
+        j_slice = get_j_slice(dump, th_slice[0], th_slice[1])
+    else:
+        j_slice = slice(None)
+
+    if isinstance(var, str):
+        var = dump[i_slice, j_slice, :][var]
+    else:
+        var = var[i_slice, j_slice, :]
+
+    if isinstance(weight, str):
+        weight = dump[i_slice, j_slice, :][weight]
+    else:
+        weight = weight[i_slice, j_slice, :]
+
+    integrand_var = var * weight * dump['gdet'][i_slice, j_slice, :] * dump['dx2'] * dump['dx3']
+    integrand_weight = weight * dump['gdet'][i_slice, j_slice, :] * dump['dx2'] * dump['dx3']
+
+    if mask is not None:
+        integrand_var *= mask
+        integrand_weight *= mask
+
+    # This should usually return the right thing:
+    # 1d array in r, or 0d array (~= scalar) for single shell 
+    return np.squeeze(np.sum(integrand_var, axis=(1, 2))) / np.squeeze(np.sum(integrand_weight, axis=(1, 2)))
+
 
 def sphere_sum(dump, var, r_slice=None, i_slice=None, th_slice=None, j_slice=None, mask=None):
     """Sum everything within a sphere, semi-sphere, or thick spherical shell.
@@ -237,6 +285,38 @@ def sphere_avg(dump, var, **kwargs):
     """
     return sphere_sum(dump, var, **kwargs) / sphere_sum(dump, '1', **kwargs)
 
+def sphere_avg_weighted(dump, var, weight, r_slice=None, i_slice=None, th_slice=None, j_slice=None, mask=None):
+    """Average everything within a sphere, semi-sphere, or thick spherical shell, weighted by another variable.
+    Extents are specified optionally in r or i, and th or j, with indices taking precedence
+    Mask is multiplied at the end
+    """
+    # Translate coordinates to zone numbers.
+    if i_slice is not None:
+        i_slice = slice(i_slice[0], i_slice[1])
+    elif r_slice is not None:
+        i_slice = get_i_slice(dump,r_slice[0], r_slice[1])
+    else:
+        i_slice = slice(None)
+
+    if j_slice is not None:
+        j_slice = slice(j_slice[0], j_slice[1])
+    elif th_slice is not None:
+        j_slice = get_j_slice(dump, th_slice[0], th_slice[1])
+    else:
+        j_slice = slice(None)
+
+    if isinstance(var, str):
+        var = dump[i_slice, j_slice, :][var]
+    else:
+        var = var[i_slice, j_slice, :]
+
+    if isinstance(weight, str):
+        weight = dump[i_slice, j_slice, :][weight]
+    else:
+        weight = weight[i_slice, j_slice, :]
+
+    # TODO mask support?
+    return np.sum(var * weight * dump['gdet'][i_slice, j_slice, :] * dump['dx1'] * dump['dx2'] * dump['dx3']) / np.sum(weight * dump['gdet'][i_slice, j_slice, :] * dump['dx1'] * dump['dx2'] * dump['dx3'])
 
 def midplane_sum(dump, var, zones=2, **kwargs):
     """Average a few zones adjacent to midplane, then sum.
