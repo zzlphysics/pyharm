@@ -184,6 +184,11 @@ class KHARMAFile(DumpFile):
         params['phdf_aux']['isGhost'] = fil.isGhost
         params['phdf_aux']['BlockIdx'] = fil.BlockIdx
         params['phdf_aux']['BlockBounds'] = fil.BlockBounds
+        params['phdf_aux']['MeshBlockSize'] = fil.MeshBlockSize
+        block_bounds_np = np.array(params['phdf_aux']['BlockBounds'])
+        block_dx = np.abs(block_bounds_np[:,1] - block_bounds_np[:,0])/fil.MeshBlockSize[0]
+        params['phdf_aux']['BlockLevel'] = (np.round(params['dx1'] / block_dx)).astype(int)
+        
 
         fil.fid.close()
         del fil
