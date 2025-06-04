@@ -84,6 +84,9 @@ fns_dict = {# 4-vectors
             'beta': lambda dump: dump['Pg'] / dump['Pb'],
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
             'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
+            'height': lambda dump: np.abs(np.pi/2 - dump['th']),
+            'bernoulli': lambda dump: (-dump['u_t']*dump['h']),
+            'bernoulli_plot': lambda dump: (-dump['u_t']*dump['h']+(dump['sigma']>1)),
             # entropy
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             'h': lambda dump: enthalpy(dump),
