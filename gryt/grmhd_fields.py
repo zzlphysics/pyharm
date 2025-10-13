@@ -1,51 +1,36 @@
-__license__ = """
- File: variables.py
- 
- BSD 3-Clause License
- 
- Copyright (c) 2020-2023, Ben Prather and AFD Group at UIUC
- All rights reserved.
- 
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions are met:
- 
- 1. Redistributions of source code must retain the above copyright notice, this
-    list of conditions and the following disclaimer.
- 
- 2. Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
- 
- 3. Neither the name of the copyright holder nor the names of its
-    contributors may be used to endorse or promote products derived from
-    this software without specific prior written permission.
- 
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
 
 __doc__ = \
 """Functions for calculating various quantities in terms of the primitive variables and geometry.
 """
 
 import numpy as np
-
 from numpy import array
 from scipy.interpolate import splrep, splev
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-from .defs import Loci
-from .grmhd.b_field import *
+import yt
+from yt.fields.api import register_field_plugin
 
-import matplotlib.pyplot as plt
+@register_field_plugin
+def setup_grmhd_fields(registry, ftype="grmhd", slice_info=None):
+
+
+    def _jcov(field, data):
+        return data["gr", "gcov_00"]
+
+    def _jsq(field, data):
+        return (
+            data["parthenon", "jcon_1"]**2
+            + data["parthenon", "jcon_2"]**2
+            + data["parthenon", "jcon_3"]**2
+        )
+
+    yt.add_field(
+    name=(ftype, "jsq"),
+    function=_jsq,
+    sampling_type="local",
+    units="",
+    )
 
 # Define a dict of names, coupled with the functions required to obtain their variables.
 # That way, we only need to specify lists and final operations in eht_analysis,
@@ -57,15 +42,15 @@ fns_dict = {# 4-vectors
             'bcov': lambda dump: dump.grid.lower_grid(dump['bcon']),
             # Versions in base coordinates
             # these use the reverse of dxdX/dXdx as they transform *back*
-            'ucon_base': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX"], dump['ucon']),
-            'ucov_base': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx"], dump['ucov']),
-            'bcon_base': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX"], dump['bcon']),
-            'bcov_base': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx"], dump['bcov']),
+            'ucon_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucon"], dump['dxdX']),
+            'ucov_base': lambda dump: np.einsum("i...,ij...->j...", dump["ucov"], dump['dXdx']),
+            'bcon_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcon"], dump['dxdX']),
+            'bcov_base': lambda dump: np.einsum("i...,ij...->j...", dump["bcov"], dump['dXdx']),
             # Versions in Cartesian
-            'ucon_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx_cart"], dump['ucon_base']),
-            'ucov_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX_cart"], dump['ucov_base']),
-            'bcon_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dXdx_cart"], dump['bcon_base']),
-            'bcov_cart': lambda dump: np.einsum("ij...,j...->i...", dump["dxdX_cart"], dump['bcov_base']),
+            'ucon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucon_base"], dump['dXdx_cart']),
+            'ucov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["ucov_base"], dump['dxdX_cart']),
+            'bcon_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcon_base"], dump['dXdx_cart']),
+            'bcov_cart': lambda dump: np.einsum("i...,ij...->j...", dump["bcov_base"], dump['dxdX_cart']),
             # Versions in BL
             'ucon_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dxdX_bl'], dump['ucon_base']),
             'ucov_bl': lambda dump: np.einsum("ij...,j...->i...", dump['dXdx_bl'], dump['ucov_base']),
@@ -84,9 +69,6 @@ fns_dict = {# 4-vectors
             'beta': lambda dump: dump['Pg'] / dump['Pb'],
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
             'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
-            'height': lambda dump: np.abs(np.pi/2 - dump['th']),
-            'bernoulli': lambda dump: (-dump['u_t']*dump['h']),
-            'bernoulli_plot': lambda dump: (-dump['u_t']*dump['h']+(dump['sigma']>1)),
             # entropy
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             'h': lambda dump: enthalpy(dump),
@@ -94,7 +76,6 @@ fns_dict = {# 4-vectors
             'Gamma': lambda dump: lorentz_calc(dump),
             'cs': lambda dump: np.sqrt(dump['gam'] * dump['Pg'] / (dump['RHO'] + dump['gam'] * dump['UU'])),
             'vA': lambda dump: alfven_speed(dump),
-            'vr': lambda dump: dump["u^r"] / dump["u^t"],
             'Omega': lambda dump: dump["u^phi"] / dump["u^t"] ,
             # TODO magnetosonic, EMHD speed, effective timestep
             # Fluxes in radial direction: Mass, Energy, Angular Momentum
@@ -130,15 +111,6 @@ fns_dict = {# 4-vectors
             'lam_MRI': lambda dump: lam_MRI(dump),
             'lam_MRI_old': lambda dump: lam_MRI_old(dump),
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
-            'lam_MRI_transformR': lambda dump: lam_MRI_transformR(dump),
-            'lam_MRI_transformTH': lambda dump: lam_MRI_transformTH(dump),
-            'lam_MRI_transformPHI': lambda dump: lam_MRI_transformPHI(dump),
-            'Delta_transformR': lambda dump: Delta_transformR(dump),
-            'Delta_transformTH': lambda dump: Delta_transformTH(dump),
-            'Delta_transformPHI': lambda dump: Delta_transformPHI(dump),
-            'factorQ_r': lambda dump: factorQ_r(dump),
-            'factorQ_th': lambda dump: factorQ_th(dump),
-            'factorQ_phi': lambda dump: factorQ_phi(dump),
             'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'divB_cons_rel': lambda dump: divB_cons(dump.grid, dump['cons.B']) / dump['b'] / dump["gdet"] * dump["dx1"],
@@ -292,60 +264,6 @@ def lam_MRI_transform(dump):
     # From Porth et al (2019) & referenced Takahashi 
     return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
             dump['b^th'] * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2)
-
-def lam_MRI_transformR(dump):
-    # From Porth et al (2019) & referenced Takahashi 
-    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
-    betar = (2 * dump['r']/big_sigma)/(1 + 2 * dump['r']/big_sigma)
-    gammarr = 1 + 2 * dump['r']/big_sigma
-    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
-            np.abs(dump['b^t'] * betar / np.sqrt(gammarr) + dump['b^r'] / np.sqrt(gammarr))
-
-def lam_MRI_transformTH(dump):
-    # From Porth et al (2019) & referenced Takahashi 
-    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
-            np.abs(dump['b^th'] * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2))
-
-def lam_MRI_transformPHI(dump):
-    # From Porth et al (2019) & referenced Takahashi 
-    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
-    big_delta = dump['r']**2 - 2*dump['r'] + dump['a']**2
-    # big_A = (dump['r']**2 + dump['a']**2)**2 - dump['a']**2 *big_delta * np.sin(dump['th'])**2
-    big_A = big_sigma**2 + dump['a']**2 * np.sin(dump['th'])**2 * (big_sigma + 2*dump['r'])
-    betar = (2 * dump['r']/big_sigma)/(1 + 2 * dump['r']/big_sigma)
-    gammapp = big_A * np.sin(dump['th'])**2 / big_sigma
-    gammarp = - dump['a']*np.sin(dump['th'])**2 * (1 + 2 * dump['r']/big_sigma)
-    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
-            np.abs(dump['b^t'] * betar * gammarp / np.sqrt(gammapp) + dump['b^r'] * gammarp / np.sqrt(gammapp) + dump['b^phi'] * np.sqrt(gammapp))
-
-def Delta_transformR(dump):
-    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
-    gammarr = 1 + 2 * dump['r']/big_sigma
-    Deltar = dump['dx1'] * np.exp(dump['X1'])
-    return Deltar / np.sqrt(gammarr)
-
-def Delta_transformTH(dump): # Only for mks
-    # Deltath = (dump['r']*((np.pi + (1 - dump['hslope']) * np.pi * np.cos(2*np.pi * dump['X2']))*dump['dx2']))
-    Deltath = (((np.pi + (1 - dump['hslope']) * np.pi * np.cos(2*np.pi * dump['X2']))*dump['dx2']))
-    return Deltath * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2)
-
-def Delta_transformPHI(dump):
-    Deltaphi = dump['dx3'] #dump['r'] * np.sin(dump['th']) * dump['dx3']
-    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
-    big_delta = dump['r']**2 - 2*dump['r'] + dump['a']**2
-    # big_A = (dump['r']**2 + dump['a']**2)**2 - dump['a']**2 *big_delta*np.sin(dump['th'])**2
-    big_A = big_sigma**2 + dump['a']**2 * np.sin(dump['th'])**2 * (big_sigma + 2*dump['r'])
-    gammapp = big_A * np.sin(dump['th'])**2 / big_sigma
-    return Deltaphi * np.sqrt(gammapp)
-
-def factorQ_r(dump):
-    return (dump['lam_MRI_transformR']) / Delta_transformR(dump)
-
-def factorQ_th(dump):
-    return (dump['lam_MRI_transformTH']) / Delta_transformTH(dump)
-
-def factorQ_phi(dump):
-    return (dump['lam_MRI_transformPHI']) / Delta_transformPHI(dump)
 
 def enthalpy(dump):
     return 1 + dump['Pg'] + dump['u']
