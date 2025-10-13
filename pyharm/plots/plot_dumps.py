@@ -131,12 +131,15 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
         z = wrap(z)
         var = wrap(var)
 
+    # 从kwargs中获取zorder，如果没有则使用None（让matplotlib使用默认值）
+    zorder = kwargs.pop('zorder', None)
+
     # Use symlog only when we need it
     if log and np.any(var < 0.0):
         if cmap == 'jet':
             cmap = 'RdBu_r'
         mesh = pcolormesh_symlog(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                                 shading=shading, cbar=cbar) # Use this cbar, it's customized
+                                 shading=shading, cbar=cbar, zorder=zorder) # Use this cbar, it's customized
         cbar = False # We don't need another later on
     elif log:
         # Support legacy calling convention
@@ -144,11 +147,11 @@ def plot_xz(ax, dump, var, vmin=None, vmax=None, window=(-40, 40, -40, 40),
             vmin = 10**vmin
             vmax = 10**vmax
         mesh = pcolormesh_log(ax, x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                              shading=shading, cbar=cbar) # Use this cbar, it's customized
+                              shading=shading, cbar=cbar, zorder=zorder) # Use this cbar, it's customized
         cbar = False # We don't need another later on
     else:
         mesh = ax.pcolormesh(x, z, var, cmap=cmap, vmin=vmin, vmax=vmax,
-                             shading=shading)
+                             shading=shading, zorder=zorder)
 
     if native:
         if xlabel: ax.set_xlabel("X1 (native coordinates)")

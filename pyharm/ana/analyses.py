@@ -113,6 +113,31 @@ def r_profiles(dump, out, vars=('rho', 'Pg', 'u^r', 'u^3', 'u_3', 'b', 'inv_beta
             out['r/' + var + '_disk'] = out['rt/' + var + '_disk']
             out['r/' + var + '_notdisk'] = out['rt/' + var + '_notdisk']
 
+def density_scale_height(dump, out, **kwargs):
+    """Density scale height"""
+    out['rt/height'] = shell_avg_weighted(dump, 'height', 'rho')
+    out['rt/rho_weighted'] = shell_avg_weighted(dump, 'rho', 'rho')
+    out['rt/Pg_weighted'] = shell_avg_weighted(dump, 'Pg', 'rho')
+    out['rt/u^r_weighted'] = shell_avg_weighted(dump, 'u^r', 'rho')
+    out['rt/u^th_weighted'] = shell_avg_weighted(dump, 'u^th', 'rho')
+    out['rt/u^3_weighted'] = shell_avg_weighted(dump, 'u^3', 'rho')
+    out['rt/Omega_weighted'] = shell_avg_weighted(dump, 'Omega', 'rho')
+    out['rt/b_weighted'] = shell_avg_weighted(dump, 'b', 'rho')
+    out['rt/bsq_weighted'] = shell_avg_weighted(dump, 'bsq', 'rho')
+    out['rt/Theta_weighted'] = shell_avg_weighted(dump, 'Theta', 'rho')
+    
+    if _get(kwargs, 'do_tavgs'):
+        out['r/height'] = out['rt/height']
+        out['r/rho_weighted'] = out['rt/rho_weighted']
+        out['r/Pg_weighted'] = out['rt/Pg_weighted']
+        out['r/u^r_weighted'] = out['rt/u^r_weighted']
+        out['r/u^th_weighted'] = out['rt/u^th_weighted']
+        out['r/u^3_weighted'] = out['rt/u^3_weighted']
+        out['r/Omega_weighted'] = out['rt/Omega_weighted']
+        out['r/b_weighted'] = out['rt/b_weighted']
+        out['r/bsq_weighted'] = out['rt/bsq_weighted']
+        out['r/Theta_weighted'] = out['rt/Theta_weighted']
+        
 def r_profiles_cc(dump, out, **kwargs):
     """Radial profiles of everything used in the MAD Code Comparison '22
     """
@@ -171,6 +196,18 @@ def rth_profiles(dump, out, vars=('inv_beta', 'rho', 'sigma', 'Theta'), **kwargs
         out['rtht/' + var] = np.mean(dump[var], axis=-1)
         if _get(kwargs, 'do_tavgs'):
             out['rth/' + var] = out['rtht/' + var]
+
+def bernoulli_analysis(dump, out, **kwargs):
+    """Bernoulli analysis"""
+    out['rtht/bernoulli'] = np.mean(dump['bernoulli'], axis=-1)
+    out['rtht/bernoulli_plot'] = np.mean(dump['bernoulli_plot'], axis=-1)
+    out['rtht/u^r'] = np.mean(dump['u^r'], axis=-1)
+    out['rtht/FM'] = np.mean(dump['FM'], axis=-1)
+    if _get(kwargs, 'do_tavgs'):
+        out['rth/bernoulli'] = out['rtht/bernoulli']
+        out['rth/bernoulli_plot'] = out['rtht/bernoulli_plot']
+        out['rth/u^r'] = out['rtht/u^r']
+        out['rth/FM'] = out['rtht/FM']
 
 def diagnostics(dump, out, **kwargs):
     """Energy ratios on the grid to gauge floor effectiveness, along with total floor hit and inversion flags

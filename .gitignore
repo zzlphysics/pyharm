@@ -7,6 +7,8 @@ dumps/
 *.h5
 *.png
 *.mp4
+*.eps
+*.pdf
 
 # Libraries which are managed separately
 src/pystella/
@@ -120,3 +122,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+*.err
+*.out
