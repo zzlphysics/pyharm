@@ -389,7 +389,11 @@ def factorQ(dump, out, **kwargs):
         Porth等, 2019, 《The Event Horizon General Relativistic Magnetohydrodynamic Code Comparison Project》.
     """
     jmin, jmax = get_j_bounds(dump)
-    # rout = np.min([dump['r'][-1,0,0], dump['r_out'], 50.0])
+    rin = dump['r_eh']
+    rout = np.min([0.95*dump['r'][-1,0,0], 0.95*dump['r_out'], 50.0])
+    out['t/factorQ_r'] = sphere_avg(dump, 'factorQ_r', r_slice=(rin, rout), j_slice=(jmin, jmax))
+    out['t/factorQ_th'] = sphere_avg(dump, 'factorQ_th', r_slice=(rin, rout), j_slice=(jmin, jmax))
+    out['t/factorQ_phi'] = sphere_avg(dump, 'factorQ_phi', r_slice=(rin, rout), j_slice=(jmin, jmax))
     out['rt/factorQ_r'] = shell_avg(dump, 'factorQ_r', j_slice=(jmin, jmax))
     out['rt/factorQ_th'] = shell_avg(dump, 'factorQ_th', j_slice=(jmin, jmax))
     out['rt/factorQ_phi'] = shell_avg(dump, 'factorQ_phi', j_slice=(jmin, jmax))
@@ -399,8 +403,17 @@ def factorQ_mass_weighted(dump, out, **kwargs):
         Dexter等, 2020, 《A Parameter Survey of Sgr A* Radiative Models from GRMHD Simulations with Self-Consistent Electron Heating》.
         Chatterjee, K., “Observational signatures of disc and jet misalignment in images of accreting black holes”, <i>Monthly Notices of the Royal Astronomical Society</i>, vol. 499, no. 1, OUP, pp. 362–378, 2020. doi:10.1093/mnras/staa2718.
     """
-    # rin = 6.0 #dump['r_eh']
-    # rout = np.min([dump['r'][-1,0,0], dump['r_out'], 15.0])
+    rin6 = 6.0 #dump['r_eh']
+    rout15 = np.min([dump['r'][-1,0,0], dump['r_out'], 15.0])
+    out['t/mass-weighted-factorQ_r_615'] = sphere_avg_weighted(dump, 'factorQ_r', 'rho', r_slice=(rin6, rout15))
+    out['t/mass-weighted-factorQ_th_615'] = sphere_avg_weighted(dump, 'factorQ_th', 'rho', r_slice=(rin6, rout15))
+    out['t/mass-weighted-factorQ_phi_615'] = sphere_avg_weighted(dump, 'factorQ_phi', 'rho', r_slice=(rin6, rout15))
+    rin = dump['r_eh']
+    rout = np.min([0.95*dump['r'][-1,0,0], 0.95 * dump['r_out'], 150.0])
+    out['t/mass-weighted-factorQ_r_150'] = sphere_avg_weighted(dump, 'factorQ_r', 'rho', r_slice=(rin, rout))
+    out['t/mass-weighted-factorQ_th_150'] = sphere_avg_weighted(dump, 'factorQ_th', 'rho', r_slice=(rin, rout))
+    out['t/mass-weighted-factorQ_phi_150'] = sphere_avg_weighted(dump, 'factorQ_phi', 'rho', r_slice=(rin, rout))
+
     out['rt/mass-weighted-factorQ_r'] = shell_avg_weighted(dump, 'factorQ_r', 'rho')
     out['rt/mass-weighted-factorQ_th'] = shell_avg_weighted(dump, 'factorQ_th', 'rho')
     out['rt/mass-weighted-factorQ_phi'] = shell_avg_weighted(dump, 'factorQ_phi', 'rho')
