@@ -209,7 +209,7 @@ def vecs_prim(fig, dump, diag, plotrc):
     # CUTS
     plotrc['average'] = True
     plotrc['log'] = True
-    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', *plotrc)
+    plot_slices(ax_slc(1), ax_slc(5), dump, 'rho', **plotrc)
 
     for i,var in zip((2,3,4,6,7,8), ("U1", "U2", "U3", "B1", "B2", "B3")):
         plot_xz(ax_slc(i), dump, var, **plotrc)
