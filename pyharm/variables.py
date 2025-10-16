@@ -84,6 +84,9 @@ fns_dict = {# 4-vectors
             'beta': lambda dump: dump['Pg'] / dump['Pb'],
             'sigma': lambda dump: dump['bsq'] / dump['RHO'],
             'Theta': lambda dump: (dump['gam'] - 1) * dump['UU'] / dump['RHO'],
+            'height': lambda dump: np.abs(np.pi/2 - dump['th']),
+            'bernoulli': lambda dump: (-dump['u_t']*dump['h']),
+            'bernoulli_plot': lambda dump: (-dump['u_t']*dump['h']+(dump['sigma']>1)),
             # entropy
             'K': lambda dump: (dump['gam']-1.) * dump['UU'] * pow(dump['RHO'], -dump['gam']),
             'h': lambda dump: enthalpy(dump),
@@ -127,6 +130,15 @@ fns_dict = {# 4-vectors
             'lam_MRI': lambda dump: lam_MRI(dump),
             'lam_MRI_old': lambda dump: lam_MRI_old(dump),
             'lam_MRI_transform': lambda dump: lam_MRI_transform(dump),
+            'lam_MRI_transformR': lambda dump: lam_MRI_transformR(dump),
+            'lam_MRI_transformTH': lambda dump: lam_MRI_transformTH(dump),
+            'lam_MRI_transformPHI': lambda dump: lam_MRI_transformPHI(dump),
+            'Delta_transformR': lambda dump: Delta_transformR(dump),
+            'Delta_transformTH': lambda dump: Delta_transformTH(dump),
+            'Delta_transformPHI': lambda dump: Delta_transformPHI(dump),
+            'factorQ_r': lambda dump: factorQ_r(dump),
+            'factorQ_th': lambda dump: factorQ_th(dump),
+            'factorQ_phi': lambda dump: factorQ_phi(dump),
             'divB_prims': lambda dump: divB(dump.grid, dump['B']),
             'divB_cons': lambda dump: divB_cons(dump.grid, dump['cons.B']),
             'divB_cons_rel': lambda dump: divB_cons(dump.grid, dump['cons.B']) / dump['b'] / dump["gdet"] * dump["dx1"],
@@ -280,6 +292,57 @@ def lam_MRI_transform(dump):
     # From Porth et al (2019) & referenced Takahashi 
     return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
             dump['b^th'] * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2)
+
+def lam_MRI_transformR(dump):
+    # From Porth et al (2019) & referenced Takahashi 
+    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
+    betar = (2 * dump['r']/big_sigma)/(1 + 2 * dump['r']/big_sigma)
+    gammarr = 1 + 2 * dump['r']/big_sigma
+    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
+            np.abs(dump['b^t'] * betar / np.sqrt(gammarr) + dump['b^r'] / np.sqrt(gammarr))
+
+def lam_MRI_transformTH(dump):
+    # From Porth et al (2019) & referenced Takahashi 
+    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
+            np.abs(dump['b^th'] * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2))
+
+def lam_MRI_transformPHI(dump):
+    # From Porth et al (2019) & referenced Takahashi 
+    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
+    big_delta = dump['r']**2 - 2*dump['r'] + dump['a']**2
+    big_A = big_sigma**2 + dump['a']**2 * np.sin(dump['th'])**2 * (big_sigma + 2*dump['r'])
+    betar = (2 * dump['r']/big_sigma)/(1 + 2 * dump['r']/big_sigma)
+    gammapp = big_A * np.sin(dump['th'])**2 / big_sigma
+    gammarp = - dump['a']*np.sin(dump['th'])**2 * (1 + 2 * dump['r']/big_sigma)
+    return 2 * np.pi / (np.sqrt(dump['rho']*dump['h'] + dump['bsq']) * (dump['u^3']/dump['u^0'])) * \
+            np.abs(dump['b^t'] * betar * gammarp / np.sqrt(gammapp) + dump['b^r'] * gammarp / np.sqrt(gammapp) + dump['b^phi'] * np.sqrt(gammapp))
+
+def Delta_transformR(dump):
+    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
+    gammarr = 1 + 2 * dump['r']/big_sigma
+    Deltar = dump['dx1'] * np.exp(dump['X1'])
+    return Deltar / np.sqrt(gammarr)
+
+def Delta_transformTH(dump): # Only for mks
+    Deltath = (((np.pi + (1 - dump['hslope']) * np.pi * np.cos(2*np.pi * dump['X2']))*dump['dx2']))
+    return Deltath * np.sqrt(dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2)
+
+def Delta_transformPHI(dump):
+    Deltaphi = dump['dx3']
+    big_sigma = dump['r']**2 + dump['a']**2 * np.cos(dump['th'])**2
+    big_delta = dump['r']**2 - 2*dump['r'] + dump['a']**2
+    big_A = big_sigma**2 + dump['a']**2 * np.sin(dump['th'])**2 * (big_sigma + 2*dump['r'])
+    gammapp = big_A * np.sin(dump['th'])**2 / big_sigma
+    return Deltaphi * np.sqrt(gammapp)
+
+def factorQ_r(dump):
+    return (dump['lam_MRI_transformR']) / Delta_transformR(dump)
+
+def factorQ_th(dump):
+    return (dump['lam_MRI_transformTH']) / Delta_transformTH(dump)
+
+def factorQ_phi(dump):
+    return (dump['lam_MRI_transformPHI']) / Delta_transformPHI(dump)
 
 def enthalpy(dump):
     return 1 + dump['Pg'] + dump['u']
