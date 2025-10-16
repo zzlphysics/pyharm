@@ -99,10 +99,23 @@ def overlay_grid(ax, grid, spacing=1, color='k', linewidth=0.2, native=False, lo
         for i in range(0, grid['n1']+1, s):
             ax.plot(m[:,i,::s,0], m[:,i,::s,0], color=color, linewidth=linewidth)
     else:
-        for i in range(0, grid['n2']+1, s):
-            ax.plot(c.cart_x(m[:,::s,i,0], log_r), c.cart_z(m[:,::s,i,0], log_r), color=color, linewidth=linewidth)
-        for i in range(0, grid['n1']+1, s):
-            ax.plot(c.cart_x(m[:,i,::s,0], log_r), c.cart_z(m[:,i,::s,0], log_r), color=color, linewidth=linewidth)
+        # 对于二维数据，复制到正半轴
+        if grid['n3'] == 1:
+            for i in range(0, grid['n2']+1, s):
+                x_coords = c.cart_x(m[:,::s,i,0], log_r)
+                z_coords = c.cart_z(m[:,::s,i,0], log_r)
+                # 画负半轴
+                ax.plot(-np.abs(x_coords), z_coords, color=color, linewidth=linewidth)
+            for i in range(0, grid['n1']+1, s):
+                x_coords = c.cart_x(m[:,i,::s,0], log_r)
+                z_coords = c.cart_z(m[:,i,::s,0], log_r)
+                # 画负半轴
+                ax.plot(-np.abs(x_coords), z_coords, color=color, linewidth=linewidth)
+        else:
+            for i in range(0, grid['n2']+1, s):
+                ax.plot(c.cart_x(m[:,::s,i,0], log_r), c.cart_z(m[:,::s,i,0], log_r), color=color, linewidth=linewidth)
+            for i in range(0, grid['n1']+1, s):
+                ax.plot(c.cart_x(m[:,i,::s,0], log_r), c.cart_z(m[:,i,::s,0], log_r), color=color, linewidth=linewidth)
 
 #### VARIABLES ####
 
@@ -136,10 +149,84 @@ def overlay_blocks(ax, dump, native=False, color='k', linewidth=0.2, log_r=False
             ax.plot(line3[1], line3[2], color=color, linewidth=linewidth)
             ax.plot(line4[1], line4[2], color=color, linewidth=linewidth)
         else:
-            ax.plot(c.cart_x(line1, log_r), c.cart_z(line1, log_r), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line2, log_r), c.cart_z(line2, log_r), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line3, log_r), c.cart_z(line3, log_r), color=color, linewidth=linewidth)
-            ax.plot(c.cart_x(line4, log_r), c.cart_z(line4, log_r), color=color, linewidth=linewidth)
+            if dump['n3'] == 1:
+                # 对于二维数据，复制到负半轴
+                for line in [line1, line2, line3, line4]:
+                    x_coords = c.cart_x(line, log_r)
+                    z_coords = c.cart_z(line, log_r)
+                    ax.plot(-np.abs(x_coords), z_coords, color=color, linewidth=linewidth)
+            else:
+                ax.plot(c.cart_x(line1, log_r), c.cart_z(line1, log_r), color=color, linewidth=linewidth)
+                ax.plot(c.cart_x(line2, log_r), c.cart_z(line2, log_r), color=color, linewidth=linewidth)
+                ax.plot(c.cart_x(line3, log_r), c.cart_z(line3, log_r), color=color, linewidth=linewidth)
+                ax.plot(c.cart_x(line4, log_r), c.cart_z(line4, log_r), color=color, linewidth=linewidth)
+
+def overlay_blocks_mesh(ax, dump, spacing=1, native=False, color='k', linewidth_block=0.2, linewidth_mesh=0.2, log_r=False):
+    c = dump.grid.coords
+    s = spacing
+    mesh_block_size = dump['phdf_aux']['MeshBlockSize']
+    
+    for block in range(dump['num_blocks']):
+        bb = dump['phdf_aux']['BlockBounds'][block]
+        
+        # 画Block边界
+        line1 = np.array([[0,l,bb[2],0] for l in np.linspace(bb[0], bb[1])]).T
+        line2 = np.array([[0,l,bb[3],0] for l in np.linspace(bb[0], bb[1])]).T
+        line3 = np.array([[0,bb[0],l,0] for l in np.linspace(bb[2], bb[3])]).T
+        line4 = np.array([[0,bb[1],l,0] for l in np.linspace(bb[2], bb[3])]).T
+        
+        # 生成Block内部的网格线，考虑spacing
+        # 在r方向上的内部网格线
+        r_steps = np.linspace(bb[0], bb[1], mesh_block_size[0] + 1)[::s]
+        # 在theta方向上的内部网格线
+        th_steps = np.linspace(bb[2], bb[3], mesh_block_size[1] + 1)[::s]
+        
+        # 创建所有内部网格线
+        inner_lines = []
+        # r方向的线
+        for th in th_steps[1:-1]:  # 跳过边界，因为已经画过了
+            line = np.array([[0,l,th,0] for l in np.linspace(bb[0], bb[1])]).T
+            inner_lines.append(line)
+        # theta方向的线
+        for r in r_steps[1:-1]:  # 跳过边界，因为已经画过了
+            line = np.array([[0,r,l,0] for l in np.linspace(bb[2], bb[3])]).T
+            inner_lines.append(line)
+            
+        if native:
+            # 画Block边界
+            ax.plot(line1[1], line1[2], color=color, linewidth=linewidth_block)
+            ax.plot(line2[1], line2[2], color=color, linewidth=linewidth_block)
+            ax.plot(line3[1], line3[2], color=color, linewidth=linewidth_block)
+            ax.plot(line4[1], line4[2], color=color, linewidth=linewidth_block)
+            
+            # 画内部网格
+            for line in inner_lines:
+                ax.plot(line[1], line[2], color=color, linewidth=linewidth_mesh)
+                
+        else:
+            if dump['n3'] == 1:
+                # 对于二维数据，复制到负半轴
+                # 画Block边界
+                for line in [line1, line2, line3, line4]:
+                    x_coords = c.cart_x(line, log_r)
+                    z_coords = c.cart_z(line, log_r)
+                    ax.plot(-np.abs(x_coords), z_coords, color=color, linewidth=linewidth_block)
+                
+                # 画内部网格
+                for line in inner_lines:
+                    x_coords = c.cart_x(line, log_r)
+                    z_coords = c.cart_z(line, log_r)
+                    ax.plot(-np.abs(x_coords), z_coords, color=color, linewidth=linewidth_mesh)
+            else:
+                # 画Block边界
+                ax.plot(c.cart_x(line1, log_r), c.cart_z(line1, log_r), color=color, linewidth=linewidth_block)
+                ax.plot(c.cart_x(line2, log_r), c.cart_z(line2, log_r), color=color, linewidth=linewidth_block)
+                ax.plot(c.cart_x(line3, log_r), c.cart_z(line3, log_r), color=color, linewidth=linewidth_block)
+                ax.plot(c.cart_x(line4, log_r), c.cart_z(line4, log_r), color=color, linewidth=linewidth_block)
+                
+                # 画内部网格
+                for line in inner_lines:
+                    ax.plot(c.cart_x(line, log_r), c.cart_z(line, log_r), color=color, linewidth=linewidth_mesh)
 
 def overlay_blocks_xy(ax, dump, native=False, color='k', linewidth=0.2, log_r=False):
     c = dump.grid.coords
@@ -163,7 +250,7 @@ def overlay_blocks_xy(ax, dump, native=False, color='k', linewidth=0.2, log_r=Fa
 def overlay_field(ax, dump, **kwargs):
         overlay_flowlines(ax, dump, 'B1', 'B2', **kwargs)
 
-def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k', native=False, half_cut=False, reverse=False, log_r=False, **kwargs):
+def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k', native=False, half_cut=False, reverse=False, log_r=False, linewidths=None, **kwargs):
     """Overlay the "flow lines" of a pair of variables in X1 and X2 directions.  Sums assuming no divergence to obtain a
     potential, then plots contours of the potential so as to total 'nlines' total contours.
     """
@@ -216,6 +303,9 @@ def overlay_flowlines(ax, dump, varx1, varx2, levels=None, nlines=20, color='k',
             x = np.concatenate([x[:,:N2], x[:,N2-1:N2], x[:,N2:]], axis=1)
             z = np.concatenate([z[:,:N2], z[:,N2-1:N2], z[:,N2:]], axis=1)
             AJ_phi = np.concatenate([AJ_phi[:,:N2], np.nan*np.zeros((N1,1)), AJ_phi[:,N2:]], axis=1)
+        
+    if linewidths is not None:
+        kwargs['linewidths'] = linewidths
 
     ax.contour(x, z, AJ_phi, levels=levels, colors=color, **kwargs)
 
